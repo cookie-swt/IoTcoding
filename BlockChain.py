@@ -2,6 +2,7 @@ import hashlib  #实现SHA256需要用到的库
 import ecdsa     #实现密钥
 import time
 
+# 食品信息存储
 chains = dict()
 
 # sha256函数
@@ -18,44 +19,56 @@ class genKeyPair:
         self.publicKey = self.privateKey.get_verifying_key()
 
 #加工事件类
-class proEvent:
-    def __init__(self , descrption , location , time):
+class eventInfo:
+    def __init__(self , director, location, descrption):
+        self.director = director
         self.description = descrption
         self.location = location
-        self.time = time
-
-#食品信息类
-class foodInfo:
-    def __init__(self , ID , head , event):
-        self.ID = ID
-        self.head = head
-        self.event = event
         self.time = time.localtime()
-        self.sign()
-
-    #返回食品信息的哈希值
+    # 返回食品加工信息的哈希值
     def getHash(self):
-        eventdata = str(self.event.description) + str(self.event.location) + str(self.event.time)
-        return str(sha256(str(self.name)+str(self.head)+eventdata+str(self.time))).encode()
-    
+        return str(sha256(str(self.director) + str(self.description) + str(self.location)+str(self.time))).encode()
     #用负责人的私钥进行数字签名
     def sign(self):
-        self.signature = self.head.privateKey.sign(self.getHash())
-
+        self.signature = self.director.privateKey.sign(self.getHash())
     #验证数字签名
     def isValid(self , key):
         try:
-            key.verify(self.signature , self.getHash())
-        except ecdsa.keys.BadSignaturerror:
+            key.verify(self.signature, self.getHash())
+        except ecdsa.keys.BadSignatureError:
             return False
         return True
+#食品信息类
+# class foodInfo:
+#     def __init__(self , ID , head , event):
+#         self.ID = ID
+#         self.head = head
+#         self.event = event
+#         self.time = time.localtime()
+#
+#     #返回食品信息的哈希值
+#     def getHash(self):
+#         eventdata = str(self.event.description) + str(self.event.location) + str(self.event.time)
+#         return str(sha256(str(self.name)+str(self.head)+eventdata+str(self.time))).encode()
+#
+#     #用负责人的私钥进行数字签名
+#     def sign(self):
+#         self.signature = self.head.privateKey.sign(self.getHash())
+#
+#     #验证数字签名
+#     def isValid(self , key):
+#         try:
+#             key.verify(self.signature , self.getHash())
+#         except ecdsa.keys.BadSignaturerror:
+#             return False
+#         return True
 
 #区块类
 class Block:
     #构造函数
-    def __init__(self , info , prehash=''):
+    def __init__(self, event, prehash=''):
         #区块中存储的数据->食品信息对象
-        self.info = info
+        self.event = event
         # 时间戳
         self.timestamp = time.time()
         #用于得到符合PoW难度的哈希值的随机数
@@ -68,7 +81,7 @@ class Block:
     #计算本区块哈希值
     def getHash(self):
         #需要计算的值包括存储的数据、前一区块的哈希值、随机数
-        return sha256(str(self.info) + self.prehash + str(self.nonce)) + str(self.timestamp)
+        return sha256(str(self.event) + self.prehash + str(self.nonce)) + str(self.timestamp)
 
     #挖矿函数：修改随机数直至满足区块链难度
     def mine(self , difficulty):
@@ -82,10 +95,14 @@ class Block:
             else:
                 break
         print("挖矿成功" , self.hash) 
-
+    # 显示当前食品加工区块的信息
+    def getTheBlock(self):
+        print(str(self.event.time.tm_year)+"年"+str(self.event.time.tm_mon)+"月"+str(self.event.time.tm_mday)+"日"+str(self.event.time.tm_hour)+"时"
+        +str(self.event.time.tm_min)+"分"+str(self.event.time.tm_sec)+"秒\n"+"事件："+self.event.description+"  "
+        +"厂商："+self.event.location+"  "+"负责人："+self.event.director.name+"  "+"商业信息："+self.event.description+"\n")
     #验证食品信息的数字签名
     def validateInfo(self):
-        if not self.info.isValid(self.info.head.publicKey):
+        if not self.event.isValid(self.event.director.publicKey):
             print("食品信息异常！")
             return False
         return True
@@ -94,17 +111,18 @@ class Block:
 #区块链类
 class Chain:
     #构造函数
-    def __init__(self , name , ID , head , info):
+    def __init__(self, foodName, ID, event):
         #该区块链存储的食品
-        self.name = name
+        self.foodName = foodName
+        self.ID = ID
         #设置PoW的难度，哈希值符合前difficulty位为0的 区块才可以被加入
         self.difficulty = 3
         #存储区块的数组,初始只含有祖先区块
-        self.blocks = [self.createGenesis(ID , head , info)]
+        self.blocks = [self.createGenesis(event)]
         
     #生成祖先区块
-    def createGenesis(self , info):
-        genesisBlock = Block(info)
+    def createGenesis(self , event):
+        genesisBlock = Block(event)
         return genesisBlock
 
     #添加新区块
@@ -116,11 +134,15 @@ class Chain:
         #获取区块数组中最后一个元素，即最新的区块
         latestblock = self.blocks[-1]  
         #连接区块
-        block.prehash = latestblock.hash  
+        block.prehash = latestblock.hash
         #挖矿
         block.mine(self.difficulty)  
         #新区块加入区块链
         self.blocks.append(block) 
+    # 显示所有食品加工区块的信息
+    def getTheChain(self):
+        for i in range(0, len(self.blocks)) :
+            self.blocks[i].getTheBlock()
 
     #验证当前区块链是否合法
     #数据是否被篡改？ 区块之间的链接是否断开？
@@ -153,32 +175,57 @@ class Chain:
 class system:
     def __init__(self , user):
         self.user = user
-
+    #
+    def HOME(self):
+        while True:
+            switch = input("请选择: \n 1、添加食品\n2、添加食品加工信息\n3、查询食品加工信息")
+            if switch == '1':
+                self.createChain()
+            if switch == '2':
+                self.addEvent()
+            if switch == '3':
+                self.searchChain()
+    #
     #创建新的食品区块链
     def createChain(self):
         name = input("输入食品名称：")
-        ID = input("输入食品ID：")
-        if chains.has_key(ID):
+        foodID = input("请输入食品ID:")
+        if chains.get(foodID):
             print("该溯源链已存在，不能再次创建。")
             return False
-        event = proEvent("创建新的食品溯源链" , "" , time.localtime())
-        basicInfo = foodInfo(ID , self.user , event)
-        newChain = Chain(name , basicInfo)
-        chains[ID] = newChain
-
-        
-
-    #输入食品信息区块，并存入对应的区块链
-    def inputInfo(self):
+        location = input("生产商:")
+        head = input("负责人：")
+        director = genKeyPair(head)
+        description = input("描述信息:")
+        event = eventInfo(director, location, description)
+        event.sign()
+        # basicInfo = foodInfo(ID , self.user , event)
+        newChain = Chain(name, foodID, event)
+        chains[foodID] = newChain
+    # 查询某个食品区块链的溯源信息
+    def searchChain(self):
         ID = input("输入食品ID：")
-        if not chains.has_key(ID):
+        if not chains.get(ID):
+            print("Nonexistent")
+            return False
+        chains[ID].getTheChain()
+
+    # 输入食品信息区块，并存入对应的区块链
+    def addEvent(self):
+        ID = input("输入食品ID：")
+        if not chains.get(ID):
             print("该溯源链不存在，请先创建")
             return False
-        des = input("输入加工事件描述：")
         loc = input("输入加工地点：")
-        time = input("输入加工时间：")
-        event = proEvent(des , loc , time)
-        info = foodInfo(ID , self.user , event)
-        newBlock = Block(info)
-        chain = chains[ID]
-        chain.addNewBlock(newBlock)
+        head = input("请输入负责人：")
+        director = genKeyPair(head)
+        dec = input("输入加工事件(生产、加工、包装、运输、批发、零售)描述：")
+        event = eventInfo(director , loc , dec)
+        event.sign()
+        newBlock = Block(event)
+        chains[ID].addNewBlock(newBlock)
+
+# 测试
+
+systest = system(1)
+systest.HOME()
