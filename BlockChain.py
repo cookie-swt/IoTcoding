@@ -88,6 +88,7 @@ class user:
                 else:
                     print("密码错误!")
                     return False
+        print("找不到用户名！")
         return False
 
 # sha256函数
@@ -312,12 +313,13 @@ class system:
     # 输入食品信息区块，并存入对应的区块链
     def addEvent(self):
         ID = input("输入食品ID：")
-        if chains[ID].lock:
-            print("该区块链已经被锁定！无法添加信息。")
-            return False
         if not chains.get(ID):
             print("食品ID不存在！")
             return False
+        if chains[ID].lock:
+            print("该区块链已经被锁定！无法添加信息。")
+            return False
+
         dec = input("输入食品处理事件(生产、加工、包装、运输、批发、零售)描述：")
         loc = input("输入食品处理地点：")
         director = input("请输入相关负责人姓名：")
