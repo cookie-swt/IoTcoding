@@ -8,15 +8,20 @@ import subprocess
 
 # 食品信息存储
 chains = dict()
+
 # 随机字符串生成
 def randomGenerate():
     value = ''.join(random.sample(string.ascii_letters + string.digits, 8))
     return value
+
 # 用户类
 class user:
     def __init__(self):
         self.list = str(string.ascii_lowercase)
         self.pa = str(self.password())
+        #生成密钥对
+        self.privateKey = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
+        self.publicKey = self.privateKey.get_verifying_key()
     def password(self):
         result = ''
         for i in range(8):
@@ -38,7 +43,8 @@ class user:
                 return True
         return False
 
-    def adduser(self):
+    #用户注册
+    def rigester(self):
         while True:  # 循环为了防止输出已有用户名
             user_name = input('请输入要创建的用户名:')
             if len(user_name) > 8:
@@ -48,6 +54,7 @@ class user:
                 print("用户名已存在！请重新输入")
                 continue
             else:
+                self.name = user_name
                 self.wfile(user_name, self.pa, 'user.txt')
                 break
         print('你的账号如下，请牢记账号密码！\n'+'账号：'+user_name+'\t密码：'+self.pa)
@@ -56,9 +63,11 @@ class user:
         with open(fname, 'a') as f:  # 打开文件,赋予追加权限
             data = username + '\t' + password + '\n'
             f.write(data)
-    def login(self):  # 用户登录
-        usrname = input("请输入用户名：")
-        self.urname = usrname
+
+    # 用户登录        
+    def login(self):  
+        user_name = input("请输入用户名：")
+        self.name = user_name
         with open('user.txt') as file_object:
             lines = file_object.readlines()
         for line in lines:
@@ -68,11 +77,11 @@ class user:
             for w in line:
                 if w =='\t':
                     t=2
-                if t==1:
+                if t == 1:
                     usr += w
-                if t==2:
+                if t == 2:
                     pa += w
-            if usrname == usr:
+            if user_name == usr:
                 password = input("请输入密码：")
                 if password == pa.strip():
                     return True
@@ -81,32 +90,18 @@ class user:
                     return False
         return False
 
-
-
-
-
-
-
-
-
-
-        # sha256函数
+# sha256函数
 def sha256(value):
     #对输入的数据进行解码
     #返回计算后得出的16进制摘要
     return hashlib.sha256(value.encode('utf-8')).hexdigest()
 
-#生成密钥对，需要给出用户名参数
-class genKeyPair:
-    def __init__(self , name):
-        self.name = name
-        self.privateKey = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
-        self.publicKey = self.privateKey.get_verifying_key()
 
 #食品事件类
 class eventInfo:
-    def __init__(self , director, location, descrption, info=''):
+    def __init__(self , director, uploader , location, descrption, info=''):
         self.director = director
+        self.uploadr = uploader
         self.description = descrption
         self.location = location
         self.info = info
@@ -114,15 +109,11 @@ class eventInfo:
     
     # 返回食品加工信息的哈希值
     def getHash(self):
-<<<<<<< HEAD
-        return str(sha256(str(self.director) + str(self.description) + str(self.location)+str(self.time))).encode()
-    
-=======
         return str(sha256(str(self.director) + str(self.description) + str(self.location)+str(self.time)+str(self.info))).encode()
->>>>>>> 1e1b27a30579488e3e2d4975a34ae368eff150f6
-    #用负责人的私钥进行数字签名
+
+    #用上传人的私钥进行数字签名
     def sign(self):
-        self.signature = self.director.privateKey.sign(self.getHash())
+        self.signature = self.uploader.privateKey.sign(self.getHash())
 
     #验证数字签名
     def isValid(self , key):
@@ -169,11 +160,11 @@ class Block:
     def getTheBlock(self):
         print("●"+str(self.event.time.tm_year)+"年"+str(self.event.time.tm_mon)+"月"+str(self.event.time.tm_mday)+"日"+str(self.event.time.tm_hour)+"时"
         +str(self.event.time.tm_min)+"分"+str(self.event.time.tm_sec)+"秒\n"+"\t"+"事件："+self.event.description+"  "
-        +"厂商："+self.event.location+"  "+"负责人："+self.event.director.name+"  "+"相关信息："+self.event.info+"\n")
+        +"厂商："+self.event.location+"  "+"负责人："+self.event.director+"  "+"信息上传人："+self.event.uploader.name+"  "+"相关信息："+self.event.info+"\n")
 
     #验证食品信息的数字签名
     def validateInfo(self):
-        if not self.event.isValid(self.event.director.publicKey):
+        if not self.event.isValid(self.event.uploader.publicKey):
             print("食品信息异常！")
             return False
         return True
@@ -266,8 +257,9 @@ class system:
                 switch_1 = input("请选择: \n1、登录\n2、注册\n3、查询食品信息\n4、退出系统\n"+"————————————————*************************************************————————————————")
                 if switch_1 == '1':
                     login_state=self.user.login()
+                    login_state = True
                 if switch_1 == '2':
-                    self.user.adduser()
+                    self.user.register()
                 if switch_1 == '3':
                     self.searchChain()
                 if switch_1 == '4':
@@ -297,11 +289,11 @@ class system:
                 break
         print("已为该批次食品生成ID: "+foodID+" ,请勿忘记！")
         location = input("请输入生产或者培育地点:")
-        head = input("相关负责人姓名：")
-        director = genKeyPair(head)
+        director = input("相关负责人姓名：")
+
         description = "生产"
         info = input("请输入食品相关信息：")
-        event = eventInfo(director, location, description, info)
+        event = eventInfo(director,self.user ,location, description, info)
         event.sign()
         # basicInfo = foodInfo(ID , self.user , event)
         newChain = Chain(name, foodID, event)
@@ -328,10 +320,9 @@ class system:
         dec = input("输入食品处理事件(生产、加工、包装、运输、批发、零售)描述：")
 
         loc = input("输入食品处理地点：")
-        head = input("请输入相关负责人姓名：")
+        director = input("请输入相关负责人姓名：")
         info = input("请输入食品交易相关信息：")
-        director = genKeyPair(head)
-        event = eventInfo(director , loc , dec, info)
+        event = eventInfo(director , self.user , loc , dec, info)
         event.sign()
         newBlock = Block(event)
         chains[ID].addNewBlock(newBlock)
