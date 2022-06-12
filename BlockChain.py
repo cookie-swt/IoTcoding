@@ -44,7 +44,7 @@ class user:
         return False
 
     #用户注册
-    def rigester(self):
+    def register(self):
         while True:  # 循环为了防止输出已有用户名
             user_name = input('请输入要创建的用户名:')
             if len(user_name) > 8:
@@ -265,7 +265,7 @@ class system:
                 if switch_1 == '4':
                     break
             else:
-                print("————————————————**********"+"欢迎你，"+self.user.urname+"**********————————————————")
+                print("————————————————**********"+"欢迎你，"+self.user.name+"**********————————————————")
                 switch = input("请选择: \n 1、添加食品\n2、添加食品加工信息\n3、查询食品信息\n4、登出\n5、退出系统\n"+"————————————————*************************************************————————————————")
                 if switch == '1':
                     self.createChain()
