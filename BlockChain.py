@@ -18,19 +18,22 @@ class genKeyPair:
         self.privateKey = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
         self.publicKey = self.privateKey.get_verifying_key()
 
-#加工事件类
+#食品事件类
 class eventInfo:
     def __init__(self , director, location, descrption):
         self.director = director
         self.description = descrption
         self.location = location
         self.time = time.localtime()
+    
     # 返回食品加工信息的哈希值
     def getHash(self):
         return str(sha256(str(self.director) + str(self.description) + str(self.location)+str(self.time))).encode()
+    
     #用负责人的私钥进行数字签名
     def sign(self):
         self.signature = self.director.privateKey.sign(self.getHash())
+
     #验证数字签名
     def isValid(self , key):
         try:
@@ -38,30 +41,7 @@ class eventInfo:
         except ecdsa.keys.BadSignatureError:
             return False
         return True
-#食品信息类
-# class foodInfo:
-#     def __init__(self , ID , head , event):
-#         self.ID = ID
-#         self.head = head
-#         self.event = event
-#         self.time = time.localtime()
-#
-#     #返回食品信息的哈希值
-#     def getHash(self):
-#         eventdata = str(self.event.description) + str(self.event.location) + str(self.event.time)
-#         return str(sha256(str(self.name)+str(self.head)+eventdata+str(self.time))).encode()
-#
-#     #用负责人的私钥进行数字签名
-#     def sign(self):
-#         self.signature = self.head.privateKey.sign(self.getHash())
-#
-#     #验证数字签名
-#     def isValid(self , key):
-#         try:
-#             key.verify(self.signature , self.getHash())
-#         except ecdsa.keys.BadSignaturerror:
-#             return False
-#         return True
+
 
 #区块类
 class Block:
@@ -95,11 +75,13 @@ class Block:
             else:
                 break
         print("挖矿成功" , self.hash) 
+    
     # 显示当前食品加工区块的信息
     def getTheBlock(self):
         print(str(self.event.time.tm_year)+"年"+str(self.event.time.tm_mon)+"月"+str(self.event.time.tm_mday)+"日"+str(self.event.time.tm_hour)+"时"
         +str(self.event.time.tm_min)+"分"+str(self.event.time.tm_sec)+"秒\n"+"事件："+self.event.description+"  "
         +"厂商："+self.event.location+"  "+"负责人："+self.event.director.name+"  "+"商业信息："+self.event.description+"\n")
+    
     #验证食品信息的数字签名
     def validateInfo(self):
         if not self.event.isValid(self.event.director.publicKey):
@@ -135,10 +117,13 @@ class Chain:
         latestblock = self.blocks[-1]  
         #连接区块
         block.prehash = latestblock.hash
+        #对之前的区块链进行合法性验证
+        self.verify()
         #挖矿
         block.mine(self.difficulty)  
         #新区块加入区块链
         self.blocks.append(block) 
+
     # 显示所有食品加工区块的信息
     def getTheChain(self):
         for i in range(0, len(self.blocks)) :
@@ -202,6 +187,7 @@ class system:
         # basicInfo = foodInfo(ID , self.user , event)
         newChain = Chain(name, foodID, event)
         chains[foodID] = newChain
+        
     # 查询某个食品区块链的溯源信息
     def searchChain(self):
         ID = input("输入食品ID：")
