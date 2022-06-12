@@ -308,6 +308,7 @@ class system:
         print("———————————————##########################————————————————\n"+"以下是食品ID为 "+ID+" 的供应链信息：")
         chains[ID].getTheChain()
         print("———————————————##########################————————————————\n")
+
     # 输入食品信息区块，并存入对应的区块链
     def addEvent(self):
         ID = input("输入食品ID：")
@@ -318,7 +319,6 @@ class system:
             print("食品ID不存在！")
             return False
         dec = input("输入食品处理事件(生产、加工、包装、运输、批发、零售)描述：")
-
         loc = input("输入食品处理地点：")
         director = input("请输入相关负责人姓名：")
         info = input("请输入食品交易相关信息：")
