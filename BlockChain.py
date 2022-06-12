@@ -79,6 +79,7 @@ class user:
                 else:
                     print("密码错误!")
                     return False
+        print("找不到用户名！")
         return False
 
 
@@ -285,7 +286,7 @@ class system:
                     break
             else:
                 print("————————————————**********"+"欢迎你，"+self.user.urname+"**********————————————————")
-                switch = input("请选择: \n 1、添加食品\n2、添加食品加工信息\n3、查询食品信息\n4、登出\n5、退出系统\n"+"————————————————*************************************************————————————————")
+                switch = input("请选择: \n1、添加食品\n2、添加食品加工信息\n3、查询食品信息\n4、登出\n5、退出系统\n"+"————————————————*************************************************————————————————")
                 if switch == '1':
                     self.createChain()
                 if switch == '2':
@@ -329,12 +330,13 @@ class system:
     # 输入食品信息区块，并存入对应的区块链
     def addEvent(self):
         ID = input("输入食品ID：")
-        if chains[ID].lock:
-            print("该区块链已经被锁定！无法添加信息。")
-            return False
         if not chains.get(ID):
             print("食品ID不存在！")
             return False
+        if chains[ID].lock:
+            print("该区块链已经被锁定！无法添加信息。")
+            return False
+
         dec = input("输入食品处理事件(生产、加工、包装、运输、批发、零售)描述：")
 
         loc = input("输入食品处理地点：")
