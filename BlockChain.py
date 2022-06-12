@@ -1,11 +1,96 @@
 import hashlib  #实现SHA256需要用到的库
 import ecdsa     #实现密钥
 import time
+from random import choice
+import string
+import random
+import subprocess
 
 # 食品信息存储
 chains = dict()
+# 随机字符串生成
+def randomGenerate():
+    value = ''.join(random.sample(string.ascii_letters + string.digits, 8))
+    return value
+# 用户类
+class user:
+    def __init__(self):
+        self.list = str(string.ascii_lowercase)
+        self.pa = str(self.password())
+    def password(self):
+        result = ''
+        for i in range(8):
+            ch = choice(self.list)
+            result += ch
+        return result
 
-# sha256函数
+    def checkTheFile(self, username):
+        with open('user.txt') as file_object:
+            lines = file_object.readlines()
+        for line in lines:
+            usr = ''
+            for w in line:
+                if w != '\t':
+                    usr += w
+                else:
+                    break
+            if username == usr:
+                return True
+        return False
+
+    def adduser(self):
+        while True:  # 循环为了防止输出已有用户名
+            user_name = input('请输入要创建的用户名:')
+            if len(user_name) > 8:
+                print("用户名长度不超过8！")
+                continue
+            if self.checkTheFile(user_name):
+                print("用户名已存在！请重新输入")
+                continue
+            else:
+                self.wfile(user_name, self.pa, 'user.txt')
+                break
+        print('你的账号如下，请牢记账号密码！\n'+'账号：'+user_name+'\t密码：'+self.pa)
+
+    def wfile(self, username, password, fname):  # 用户名密码写入文件
+        with open(fname, 'a') as f:  # 打开文件,赋予追加权限
+            data = username + '\t' + password + '\n'
+            f.write(data)
+    def login(self):  # 用户登录
+        usrname = input("请输入用户名：")
+        self.urname = usrname
+        with open('user.txt') as file_object:
+            lines = file_object.readlines()
+        for line in lines:
+            usr = ''
+            pa = ''
+            t=1
+            for w in line:
+                if w =='\t':
+                    t=2
+                if t==1:
+                    usr += w
+                if t==2:
+                    pa += w
+            if usrname == usr:
+                password = input("请输入密码：")
+                if password == pa.strip():
+                    return True
+                else:
+                    print("密码错误!")
+                    return False
+        return False
+
+
+
+
+
+
+
+
+
+
+        # sha256函数
 def sha256(value):
     #对输入的数据进行解码
     #返回计算后得出的16进制摘要
@@ -20,14 +105,15 @@ class genKeyPair:
 
 #加工事件类
 class eventInfo:
-    def __init__(self , director, location, descrption):
+    def __init__(self , director, location, descrption, info=''):
         self.director = director
         self.description = descrption
         self.location = location
+        self.info = info
         self.time = time.localtime()
     # 返回食品加工信息的哈希值
     def getHash(self):
-        return str(sha256(str(self.director) + str(self.description) + str(self.location)+str(self.time))).encode()
+        return str(sha256(str(self.director) + str(self.description) + str(self.location)+str(self.time)+str(self.info))).encode()
     #用负责人的私钥进行数字签名
     def sign(self):
         self.signature = self.director.privateKey.sign(self.getHash())
@@ -94,12 +180,11 @@ class Block:
                 self.hash = self.getHash()
             else:
                 break
-        print("挖矿成功" , self.hash) 
     # 显示当前食品加工区块的信息
     def getTheBlock(self):
-        print(str(self.event.time.tm_year)+"年"+str(self.event.time.tm_mon)+"月"+str(self.event.time.tm_mday)+"日"+str(self.event.time.tm_hour)+"时"
-        +str(self.event.time.tm_min)+"分"+str(self.event.time.tm_sec)+"秒\n"+"事件："+self.event.description+"  "
-        +"厂商："+self.event.location+"  "+"负责人："+self.event.director.name+"  "+"商业信息："+self.event.description+"\n")
+        print("●"+str(self.event.time.tm_year)+"年"+str(self.event.time.tm_mon)+"月"+str(self.event.time.tm_mday)+"日"+str(self.event.time.tm_hour)+"时"
+        +str(self.event.time.tm_min)+"分"+str(self.event.time.tm_sec)+"秒\n"+"\t"+"事件："+self.event.description+"  "
+        +"厂商："+self.event.location+"  "+"负责人："+self.event.director.name+"  "+"相关信息："+self.event.info+"\n")
     #验证食品信息的数字签名
     def validateInfo(self):
         if not self.event.isValid(self.event.director.publicKey):
@@ -112,6 +197,8 @@ class Block:
 class Chain:
     #构造函数
     def __init__(self, foodName, ID, event):
+        #该区块链的锁
+        self.lock = False
         #该区块链存储的食品
         self.foodName = foodName
         self.ID = ID
@@ -127,6 +214,8 @@ class Chain:
 
     #添加新区块
     def addNewBlock(self , block):
+        if self.lock:
+            print("该区块链已经被锁定！无法添加信息。")
         #判断区块的数字签名
         if not block.validateInfo():
             print("信息上传失败！")
@@ -143,6 +232,10 @@ class Chain:
     def getTheChain(self):
         for i in range(0, len(self.blocks)) :
             self.blocks[i].getTheBlock()
+        if self.lock:
+            print("●区块链已锁定, 无法继续添加区块")
+        else:
+            print("●区块链未锁定, 可以继续添加区块.......")
 
     #验证当前区块链是否合法
     #数据是否被篡改？ 区块之间的链接是否断开？
@@ -177,27 +270,49 @@ class system:
         self.user = user
     #
     def HOME(self):
+        login_state=False
         while True:
-            switch = input("请选择: \n 1、添加食品\n2、添加食品加工信息\n3、查询食品加工信息")
-            if switch == '1':
-                self.createChain()
-            if switch == '2':
-                self.addEvent()
-            if switch == '3':
-                self.searchChain()
+            if not login_state:
+                print("————————————————*******************如需登录请登录*******************————————————————")
+                switch_1 = input("请选择: \n1、登录\n2、注册\n3、查询食品信息\n4、退出系统\n"+"————————————————*************************************************————————————————")
+                if switch_1 == '1':
+                    login_state=self.user.login()
+                if switch_1 == '2':
+                    self.user.adduser()
+                if switch_1 == '3':
+                    self.searchChain()
+                if switch_1 == '4':
+                    break
+            else:
+                print("————————————————**********"+"欢迎你，"+self.user.urname+"**********————————————————")
+                switch = input("请选择: \n 1、添加食品\n2、添加食品加工信息\n3、查询食品信息\n4、登出\n5、退出系统\n"+"————————————————*************************************************————————————————")
+                if switch == '1':
+                    self.createChain()
+                if switch == '2':
+                    self.addEvent()
+                if switch == '3':
+                    self.searchChain()
+                if switch == '4':
+                    login_state = False
+                if switch == '5':
+                    break
     #
     #创建新的食品区块链
     def createChain(self):
         name = input("输入食品名称：")
-        foodID = input("请输入食品ID:")
-        if chains.get(foodID):
-            print("该溯源链已存在，不能再次创建。")
-            return False
-        location = input("生产商:")
-        head = input("负责人：")
+        while True:
+            foodID = randomGenerate()
+            if chains.get(foodID):
+                continue
+            else:
+                break
+        print("已为该批次食品生成ID: "+foodID+" ,请勿忘记！")
+        location = input("请输入生产或者培育地点:")
+        head = input("相关负责人姓名：")
         director = genKeyPair(head)
-        description = input("描述信息:")
-        event = eventInfo(director, location, description)
+        description = "生产"
+        info = input("请输入食品相关信息：")
+        event = eventInfo(director, location, description, info)
         event.sign()
         # basicInfo = foodInfo(ID , self.user , event)
         newChain = Chain(name, foodID, event)
@@ -206,26 +321,34 @@ class system:
     def searchChain(self):
         ID = input("输入食品ID：")
         if not chains.get(ID):
-            print("Nonexistent")
+            print("食品ID不存在！")
             return False
+        print("———————————————##########################————————————————\n"+"以下是食品ID为 "+ID+" 的供应链信息：")
         chains[ID].getTheChain()
-
+        print("———————————————##########################————————————————\n")
     # 输入食品信息区块，并存入对应的区块链
     def addEvent(self):
         ID = input("输入食品ID：")
-        if not chains.get(ID):
-            print("该溯源链不存在，请先创建")
+        if chains[ID].lock:
+            print("该区块链已经被锁定！无法添加信息。")
             return False
-        loc = input("输入加工地点：")
-        head = input("请输入负责人：")
+        if not chains.get(ID):
+            print("食品ID不存在！")
+            return False
+        dec = input("输入食品处理事件(生产、加工、包装、运输、批发、零售)描述：")
+
+        loc = input("输入食品处理地点：")
+        head = input("请输入相关负责人姓名：")
+        info = input("请输入食品交易相关信息：")
         director = genKeyPair(head)
-        dec = input("输入加工事件(生产、加工、包装、运输、批发、零售)描述：")
-        event = eventInfo(director , loc , dec)
+        event = eventInfo(director , loc , dec, info)
         event.sign()
         newBlock = Block(event)
         chains[ID].addNewBlock(newBlock)
+        if dec=="零售" or dec =="批发":
+            chains[ID].lock = True
 
 # 测试
-
-systest = system(1)
+usr = user()
+systest = system(usr)
 systest.HOME()
