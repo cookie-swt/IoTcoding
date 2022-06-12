@@ -18,7 +18,7 @@ def randomGenerate():
 class user:
     def __init__(self):
         self.list = str(string.ascii_lowercase)
-        self.pa = str(self.password())
+        self._pa = str(self.password())
         #生成密钥对
         self.privateKey = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
         self.publicKey = self.privateKey.get_verifying_key()
@@ -55,9 +55,9 @@ class user:
                 continue
             else:
                 self.name = user_name
-                self.wfile(user_name, self.pa, 'user.txt')
+                self.wfile(user_name, self._pa, 'user.txt')
                 break
-        print('你的账号如下，请牢记账号密码！\n'+'账号：'+user_name+'\t密码：'+self.pa)
+        print('你的账号如下，请牢记账号密码！\n'+'账号：'+user_name+'\t密码：'+self._pa)
 
     def wfile(self, username, password, fname):  # 用户名密码写入文件
         with open(fname, 'a') as f:  # 打开文件,赋予追加权限
@@ -100,28 +100,34 @@ def sha256(value):
 #食品事件类
 class eventInfo:
     def __init__(self , director, uploader , location, descrption, info=''):
-        self.director = director
-        self.uploadr = uploader
-        self.description = descrption
-        self.location = location
-        self.info = info
-        self.time = time.localtime()
+        self._director = director
+        self._uploadr = uploader
+        self._description = descrption
+        self._location = location
+        self._info = info
+        self._time = time.localtime()
     
     # 返回食品加工信息的哈希值
     def getHash(self):
-        return str(sha256(str(self.director) + str(self.description) + str(self.location)+str(self.time)+str(self.info))).encode()
+        return str(sha256(str(self._director) + str(self._description) + str(self._location)+str(self._time)+str(self._info))).encode()
 
     #用上传人的私钥进行数字签名
     def sign(self):
-        self.signature = self.uploader.privateKey.sign(self.getHash())
+        self._signature = self._uploader.privateKey.sign(self.getHash())
 
     #验证数字签名
     def isValid(self , key):
         try:
-            key.verify(self.signature, self.getHash())
+            key.verify(self._signature, self.getHash())
         except ecdsa.keys.BadSignatureError:
             return False
         return True
+
+    #获取事件信息
+    def getEventInfo(self):
+        print("●"+str(self._time.tm_year)+"年"+str(self._time.tm_mon)+"月"+str(self._time.tm_mday)+"日"+str(self._time.tm_hour)+"时"
+        +str(self._time.tm_min)+"分"+str(self._time.tm_sec)+"秒\n"+"\t"+"事件："+self._description+"  "
+        +"厂商："+self._location+"  "+"负责人："+self._director+"  "+"信息上传人："+self._uploader.name+"  "+"相关信息："+self._info+"\n")
 
 
 #区块类
@@ -131,18 +137,18 @@ class Block:
         #区块中存储的数据->食品信息对象
         self.event = event
         # 时间戳
-        self.timestamp = time.time()
+        self._timestamp = time.time()
         #用于得到符合PoW难度的哈希值的随机数
-        self.nonce = 0 
+        self._nonce = 0 
         #上一个区块的哈希值，用于将区块连接起来
-        self.prehash = prehash
+        self._prehash = prehash
         #计算本区块的哈希值
-        self.hash = self.getHash()
+        self._hash = self.getHash()
 
     #计算本区块哈希值
     def getHash(self):
         #需要计算的值包括存储的数据、前一区块的哈希值、随机数
-        return sha256(str(self.event) + self.prehash + str(self.nonce)) + str(self.timestamp)
+        return sha256(str(self.event) + self._prehash + str(self._nonce)) + str(self._timestamp)
 
     #挖矿函数：修改随机数直至满足区块链难度
     def mine(self , difficulty):
@@ -158,9 +164,7 @@ class Block:
 
     # 显示当前食品加工区块的信息
     def getTheBlock(self):
-        print("●"+str(self.event.time.tm_year)+"年"+str(self.event.time.tm_mon)+"月"+str(self.event.time.tm_mday)+"日"+str(self.event.time.tm_hour)+"时"
-        +str(self.event.time.tm_min)+"分"+str(self.event.time.tm_sec)+"秒\n"+"\t"+"事件："+self.event.description+"  "
-        +"厂商："+self.event.location+"  "+"负责人："+self.event.director+"  "+"信息上传人："+self.event.uploader.name+"  "+"相关信息："+self.event.info+"\n")
+        self.event.getEventInfo()
 
     #验证食品信息的数字签名
     def validateInfo(self):
